@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS Hacker_Information(
 );
 
 CREATE TABLE IF NOT EXISTS Scans(
-    badge_code TEXT,
-    activity_name TEXT,
-    activity_category TEXT, 
-    scanned_at TEXT
+    badge_code TEXT NOT NULL,
+    activity_name TEXT NOT NULL,
+    activity_category TEXT NOT NULL, 
+    scanned_at TIMESTAMP NOT NULL
 );

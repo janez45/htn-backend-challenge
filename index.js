@@ -61,9 +61,12 @@ app.get("/users", async (req, res) => {
         `
         SELECT h.name, h.email, h.phone, h.badge_code, h.updated_at,
         COALESCE(
-          json_group_array(
-            json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
-          ),'[]'
+          CASE
+            WHEN COUNT(s.badge_code) = 0 THEN '[]'
+            ELSE json_group_array(
+              json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
+            )
+          END, '[]'
         ) AS scans
         
         FROM Hacker_Information h
@@ -95,9 +98,12 @@ app.get("/users/:id", async (req, res) => {
         `
         SELECT h.name, h.email, h.phone, h.badge_code, h.updated_at,
         COALESCE(
-          json_group_array(
-            json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
-          ),'[]'
+          CASE
+            WHEN COUNT(s.badge_code) = 0 THEN '[]'
+            ELSE json_group_array(
+              json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
+            )
+          END, '[]'
         ) AS scans
         
         FROM Hacker_Information h
@@ -118,7 +124,6 @@ app.get("/users/:id", async (req, res) => {
 // Assuming only name, email, phone, badge_code can be modified via parameters. The others should be read-only
 app.put("/users/:id", (req, res) => {
   try {
-    // TODO: Need to do something about scans
     const { id } = req.params;
     const { name, email, phone, badge_code } = req.body;
     const getBadgeCode = db
@@ -161,9 +166,12 @@ app.put("/users/:id", (req, res) => {
         `
         SELECT h.name, h.email, h.phone, h.badge_code, h.updated_at,
         COALESCE(
-          json_group_array(
-            json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
-          ),'[]'
+          CASE
+            WHEN COUNT(s.badge_code) = 0 THEN '[]'
+            ELSE json_group_array(
+              json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
+            )
+          END, '[]'
         ) AS scans
         
         FROM Hacker_Information h
@@ -175,6 +183,78 @@ app.put("/users/:id", (req, res) => {
       .get(id);
     hacker.scans = JSON.parse(hacker.scans);
     res.json(hacker); //the 0 means get first item
+  } catch (err) {
+    console.error(err.message);
+  }
+});
+
+// Scan Endpoint
+app.put("/scan/:badge_code", (req, res) => {
+  try {
+    const { badge_code } = req.params;
+    const { activity_name, activity_category } = req.body;
+
+    // update the hacker's last update
+    const update_hacker = db.prepare(
+      `
+      UPDATE Hacker_Information 
+      SET 
+        updated_at = CURRENT_TIMESTAMP
+      WHERE 
+        badge_code = ?;
+      `
+    );
+
+    // assuming all data associateed with the scan to be all information in Scans
+    const add_scan = db.prepare(
+      `
+      INSERT INTO Scans (badge_code, activity_name, activity_category, scanned_at) VALUES(?,?,?,CURRENT_TIMESTAMP) RETURNING *;
+      `
+    );
+
+    const transaction = db.transaction(
+      (badge_code, activity_name, activity_category) => {
+        const scan = add_scan.get(badge_code, activity_name, activity_category);
+        update_hacker.run(badge_code);
+        return scan;
+      }
+    );
+
+    const result = transaction(badge_code, activity_name, activity_category);
+    res.json(result);
+  } catch (err) {
+    console.error(err.message);
+  }
+});
+
+// Scan Data Endpoint
+// ASSUMING that I count duplicate events
+app.get("/scans", (req, res) => {
+  try {
+    const minFrequency = parseInt(req.query.min_frequency);
+    const maxFrequency = parseInt(req.query.max_frequency);
+    const activityCategory = req.query.activity_category;
+
+    console.log(typeof minFrequency);
+    console.log(
+      `Min frequency: ${minFrequency} Max frequency: ${maxFrequency} Activity Category: ${activityCategory}`
+    );
+    const aggregation = db.prepare(`
+      SELECT activity_category, COUNT(*) as frequency
+      FROM Scans
+      WHERE activity_category = COALESCE(?, activity_category) 
+      GROUP BY activity_category
+      HAVING 
+            frequency >= COALESCE(?, frequency) AND 
+            frequency <= COALESCE(?, frequency);
+    `);
+
+    const result = aggregation.all(
+      activityCategory,
+      minFrequency,
+      maxFrequency
+    );
+    res.json(result);
   } catch (err) {
     console.error(err.message);
   }
