@@ -20,7 +20,7 @@ const createHackerInformationTable = db.prepare(`
         email TEXT UNIQUE,
         phone TEXT,
         badge_code TEXT UNIQUE,
-        updated_at TIMESTAMP
+        updated_at TIMESTAMP NOT NULL
     );
 `);
 
