@@ -1,56 +1,9 @@
 const express = require("express");
-const fs = require("fs");
 const { setupDatabase, db } = require("./setupDatabase");
 
 const app = express();
-const rawData = fs.readFileSync("data.json");
-const hackers = JSON.parse(rawData);
 
 app.use(express.json());
-
-// Reset the database information
-// const wipeHackerInformation = db.prepare(`
-//   DELETE FROM Hacker_Information;
-// `);
-
-// const wipeScans = db.prepare(`
-//   DELETE FROM Scans;
-// `);
-
-// const insertHackerInfo = db.prepare(`
-//   INSERT INTO Hacker_Information (name, email, phone, badge_code, updated_at)
-//   VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP);
-// `);
-
-// const insertScanInfo = db.prepare(`
-//   INSERT INTO Scans (badge_code, activity_name, activity_category, scanned_at)
-//   VALUES (?, ?, ?, ?);
-// `);
-
-// const insertMany = db.transaction((hackers) => {
-//   wipeHackerInformation.run();
-//   wipeScans.run();
-
-//   for (const hacker of hackers) {
-//     insertHackerInfo.run([
-//       hacker.name,
-//       hacker.email,
-//       hacker.phone,
-//       hacker.badge_code === "" ? null : hacker.badge_code,
-//     ]);
-//     for (const scan of hacker.scans) {
-//       insertScanInfo.run([
-//         hacker.badge_code,
-//         scan.activity_name,
-//         scan.activity_category,
-//         scan.scanned_at,
-//       ]);
-//     }
-//     console.log(hacker);
-//   }
-// });
-
-// insertMany(hackers);
 
 // All users endpoint: GET localhost:3000/users or similar
 app.get("/users", async (req, res) => {
