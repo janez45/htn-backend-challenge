@@ -56,3 +56,8 @@ E.g. passing this into the request body.
 
 E.g. `/scans?activity_cateogry=workshop&min_frequency=3`
 
+## Key Assumptions:
+* A user cannot have any scans if they have no badge code (would not work out in real life)
+* When updating user information, only name, email, phone, and badge_code can be modified. ID and last_updated should not be directly modifiable.
+* Returning "all data associated with the scan" returns all information in that specific row of the `Scans` table
+* When aggregating for `/scans`, I'm counting duplicate events
