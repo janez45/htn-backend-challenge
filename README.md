@@ -26,9 +26,9 @@ This was done for ease of adding scans, and manipulating user information indepe
 ## API Documentation
 `GET /users`: The all users endpoint. Retrieves the information of all users in a json format like `data.json`. Only difference is the addition of the field `updated_at`.
 
-`GET /users/:id`: The user information endpoint. Retrieves information for a specific user by the `id` specified in the url.
+`GET /users/:id`: The user information endpoint. Retrieves information for a specific user by the `id` specified in the url. Equipped with an error handler that throws 404 if the `id` is not found.
 
-`PUT /users/:id`: The update user information endpoint. Modifies a specific user's information in any subset of `name`, `email`, `phone`, and `badge_cde` by passing them the request body as a JSON object. The modified user's information is also returned in the response.
+`PUT /users/:id`: The update user information endpoint. Modifies a specific user's information in any subset of `name`, `email`, `phone`, and `badge_cde` by passing them the request body as a JSON object. The modified user's information is also returned in the response. Also equipped with an error handler that returns 404 if the `id` is not found.
 
 This API also supports partial updates, E.g. passing in
 ```
@@ -47,7 +47,7 @@ E.g. passing this into the request body.
     "activity_category": activity_category
   }
 ```
-
+This endpoint returns 400 should `activity_name` or `activity_category` be null. It also throws 400 if `badge_code` does not exist in the hacker information database.
 
 `GET /scans`: The scans endpoint. This returns aggregated data about the scan cateogories and their frequencies. It also supports the following optional header parameters
 * `activity_category`: The activity category to investigate
