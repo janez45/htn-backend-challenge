@@ -88,7 +88,7 @@ app.get("/users/:id", async (req, res) => {
 
 // Update users endpoint: Update a specific hacker's information by their database ID
 // Assuming only name, email, phone, badge_code can be modified via parameters. ID and updated_at should not be modifiable
-app.put("/users/:id", (req, res) => {
+app.put("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, badge_code } = req.body;
@@ -176,7 +176,7 @@ app.put("/users/:id", (req, res) => {
 });
 
 // Scan Endpoint: Adds a scan for a specific badge code
-app.put("/scan/:badge_code", (req, res) => {
+app.put("/scan/:badge_code", async (req, res) => {
   try {
     const { badge_code } = req.params;
     const { activity_name, activity_category } = req.body;
@@ -246,7 +246,7 @@ app.put("/scan/:badge_code", (req, res) => {
 
 // Scans Data Endpoint: Get information about scan categories
 // Assuming that I count duplicate events if someone scans an activity more than once
-app.get("/scans", (req, res) => {
+app.get("/scans", async (req, res) => {
   try {
     const minFrequency = parseInt(req.query.min_frequency);
     const maxFrequency = parseInt(req.query.max_frequency);
