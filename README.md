@@ -20,7 +20,7 @@ Finally, run `node index` in the terminal to start up the server! You should see
 ## Database
 There are two tables in the database: one for hacker information and the other for scans (Hacker_Information and Scans) respectively. Their respective schemas can be found in `setupDatabase.js`, in functions `createHackerInformationTable` and `createScansTable`. 
 
-This was done for ease of adding scans, and manipulating user information independent of scans.
+This was done for ease of adding scans, and manipulating user information independent of scans. To output user information, we use LEFT JOIN on the badge_code.
 
  
 ## API Documentation
