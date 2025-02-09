@@ -47,9 +47,8 @@ app.get("/users/:id", async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`Retrieving user with ID: ${id}`);
-    const hacker = db
-      .prepare(
-        `
+    const getHacker = db.prepare(
+      `
         SELECT h.name, h.email, h.phone, 
           COALESCE(h.badge_code, '') as badge_code, 
           h.updated_at,
@@ -67,8 +66,17 @@ app.get("/users/:id", async (req, res) => {
         WHERE h.id = ?
         GROUP BY h.id;
       `
-      )
-      .get(id);
+    );
+
+    const hacker = getHacker.get(id);
+
+    // If there does not exist a user with this ID
+    if (!hacker) {
+      const error = new Error("ERROR Get user: Invalid user ID");
+      error.status = 404;
+      res.status(404).json({ error: "Get user: Invalid user ID" });
+      throw error;
+    }
 
     // Since json_group_array() and json_object() return strings, we must parse the scans array before returning
     hacker.scans = JSON.parse(hacker.scans);
@@ -86,10 +94,20 @@ app.put("/users/:id", (req, res) => {
     const { name, email, phone, badge_code } = req.body;
 
     // Get the old badge code associated with the hacker. We need this to update the scans
-    const getBadgeCode = db
-      .prepare(`SELECT badge_code from Hacker_Information WHERE ID = ?;`)
-      .get(id);
-    const oldBadgeCode = getBadgeCode["badge_code"];
+    const getBadgeCode = db.prepare(
+      `SELECT badge_code from Hacker_Information WHERE ID = ?;`
+    );
+    const badgeCodeData = getBadgeCode.get(id);
+
+    // If there does not exist a user with the ID
+    if (!badgeCodeData) {
+      const error = new Error("ERROR Update users: Invalid user ID");
+      error.status = 404;
+      res.status(404).json({ error: "Update users: Invalid user ID" });
+      throw error;
+    }
+
+    const oldBadgeCode = badgeCodeData["badge_code"];
 
     // Update the hacker's information.
     // If any of the new fields are null (not passed in), the old fields are retained
@@ -162,6 +180,35 @@ app.put("/scan/:badge_code", (req, res) => {
   try {
     const { badge_code } = req.params;
     const { activity_name, activity_category } = req.body;
+
+    // This should not run if activity_name or activity_category are null
+    if (!activity_name) {
+      const error = new Error("ERROR Scan: No activity name provided");
+      error.status = 400;
+      res.status(400).json({ error: "Scan: No activity name provided" });
+      throw error;
+    }
+
+    if (!activity_category) {
+      const error = new Error("ERROR Scan: No activity category provided");
+      error.status = 400;
+      res.status(400).json({ error: "Scan: No activity category provided" });
+      throw error;
+    }
+
+    // First verify if the badge code is valid
+    const validateBadgeCode = db.prepare(`
+      SELECT badge_code FROM Hacker_Information WHERE badge_code = ?
+    `);
+
+    const validBadgeCode = validateBadgeCode.get(badge_code);
+
+    if (!validBadgeCode) {
+      const error = new Error("ERROR Scan: Invalid badge code");
+      error.status = 404;
+      res.status(404).json({ error: "Scan: Invalid badge code" });
+      throw error;
+    }
 
     // update the hacker's last update time
     const update_hacker = db.prepare(
