@@ -39,6 +39,7 @@ app.get("/users", async (req, res) => {
     res.json(allHackersFormatted);
   } catch (err) {
     console.error(err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -72,9 +73,8 @@ app.get("/users/:id", async (req, res) => {
 
     // If there does not exist a user with this ID
     if (!hacker) {
-      const error = new Error("ERROR Get user: Invalid user ID");
+      const error = new Error("Get user: Invalid user ID");
       error.status = 404;
-      res.status(404).json({ error: "Get user: Invalid user ID" });
       throw error;
     }
 
@@ -83,6 +83,7 @@ app.get("/users/:id", async (req, res) => {
     res.json(hacker);
   } catch (err) {
     console.error(err.message);
+    res.status(404).json({ error: err.message });
   }
 });
 
@@ -101,9 +102,8 @@ app.put("/users/:id", async (req, res) => {
 
     // If there does not exist a user with the ID
     if (!badgeCodeData) {
-      const error = new Error("ERROR Update users: Invalid user ID");
+      const error = new Error("Update users: Invalid user ID");
       error.status = 404;
-      res.status(404).json({ error: "Update users: Invalid user ID" });
       throw error;
     }
 
@@ -172,6 +172,7 @@ app.put("/users/:id", async (req, res) => {
     res.json(hacker);
   } catch (err) {
     console.error(err.message);
+    res.status(404).json({ error: err.message });
   }
 });
 
@@ -183,16 +184,14 @@ app.put("/scan/:badge_code", async (req, res) => {
 
     // This should not run if activity_name or activity_category are null
     if (!activity_name) {
-      const error = new Error("ERROR Scan: No activity name provided");
+      const error = new Error("Scan: No activity name provided");
       error.status = 400;
-      res.status(400).json({ error: "Scan: No activity name provided" });
       throw error;
     }
 
     if (!activity_category) {
-      const error = new Error("ERROR Scan: No activity category provided");
+      const error = new Error("Scan: No activity category provided");
       error.status = 400;
-      res.status(400).json({ error: "Scan: No activity category provided" });
       throw error;
     }
 
@@ -204,9 +203,8 @@ app.put("/scan/:badge_code", async (req, res) => {
     const validBadgeCode = validateBadgeCode.get(badge_code);
 
     if (!validBadgeCode) {
-      const error = new Error("ERROR Scan: Invalid badge code");
+      const error = new Error("Scan: Invalid badge code");
       error.status = 404;
-      res.status(404).json({ error: "Scan: Invalid badge code" });
       throw error;
     }
 
@@ -241,6 +239,7 @@ app.put("/scan/:badge_code", async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error(err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -248,9 +247,22 @@ app.put("/scan/:badge_code", async (req, res) => {
 // Assuming that I count duplicate events if someone scans an activity more than once
 app.get("/scans", async (req, res) => {
   try {
+    // These are originally strings and must be parsed
     const minFrequency = parseInt(req.query.min_frequency);
     const maxFrequency = parseInt(req.query.max_frequency);
     const activityCategory = req.query.activity_category;
+
+    if (req.query.min_frequency && !minFrequency) {
+      const error = new Error("Scans: min_frequency is not an int");
+      error.status = 400;
+      throw error;
+    }
+
+    if (req.query.max_frequency && !maxFrequency) {
+      const error = new Error("Scans: max_frequency is not an int");
+      error.status = 400;
+      throw error;
+    }
 
     const aggregation = db.prepare(`
       SELECT activity_category, COUNT(*) as frequency
@@ -270,6 +282,7 @@ app.get("/scans", async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error(err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 
