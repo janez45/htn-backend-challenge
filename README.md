@@ -15,7 +15,7 @@ Finally, run `node index` in the terminal to start up the server! You should see
 ## Architecture
 * The main server is ran in `index.js`.
 * `data.json` contains the sample data to be loaded into the database.
-* * `setupDatabase.js` contains a script to load data into `hackathon.db`. For ease of setup, this is automatically ran when you start the server (see `startServer()`)
+* `setupDatabase.js` contains a script to load data into `hackathon.db`. For ease of setup, this is automatically ran when you start the server (see `startServer()`)
 
 ## Database
 There are two tables in the database: one for hacker information and the other for scans (Hacker_Information and Scans) respectively. Their respective schemas can be found in `setupDatabase.js`, in functions `createHackerInformationTable` and `createScansTable`. 
