@@ -5,21 +5,23 @@ const app = express();
 
 app.use(express.json());
 
-// All users endpoint: GET localhost:3000/users or similar
+// All users endpoint: Retrieves the information of all hackers in a json format similar to data.json
 app.get("/users", async (req, res) => {
   try {
     const allHackers = db
       .prepare(
         `
-        SELECT h.name, h.email, h.phone, h.badge_code, h.updated_at,
-        COALESCE(
-          CASE
-            WHEN COUNT(s.badge_code) = 0 THEN '[]'
-            ELSE json_group_array(
-              json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
-            )
-          END, '[]'
-        ) AS scans
+        SELECT h.name, h.email, h.phone, 
+          COALESCE(h.badge_code, '') as badge_code,
+          h.updated_at,
+          COALESCE(
+            CASE
+              WHEN COUNT(s.badge_code) = 0 THEN '[]'
+              ELSE json_group_array(
+                json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
+              )
+            END, '[]'
+          ) AS scans
         
         FROM Hacker_Information h
         LEFT JOIN Scans s ON h.badge_code = s.badge_code
@@ -27,7 +29,8 @@ app.get("/users", async (req, res) => {
       `
       )
       .all();
-    console.log("DEBUG: Outputting all hackers");
+
+    // Since json_group_array() and json_object() return strings, we must parse the scans arrays before returning
     const allHackersFormatted = allHackers.map((hacker) => ({
       ...hacker,
       scans: JSON.parse(hacker.scans),
@@ -39,24 +42,25 @@ app.get("/users", async (req, res) => {
   }
 });
 
-// Get a specific user GET localhost:3000/users/FOO
+// User information endpoint: Get a specific hacker by their specific ID in the database
 app.get("/users/:id", async (req, res) => {
   try {
-    // note that id is a parameter that we use to specify the todo
     const { id } = req.params;
-    console.log(`DEBUG: Id is ${id}`);
+    console.log(`Retrieving user with ID: ${id}`);
     const hacker = db
       .prepare(
         `
-        SELECT h.name, h.email, h.phone, h.badge_code, h.updated_at,
-        COALESCE(
-          CASE
-            WHEN COUNT(s.badge_code) = 0 THEN '[]'
-            ELSE json_group_array(
-              json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
-            )
-          END, '[]'
-        ) AS scans
+        SELECT h.name, h.email, h.phone, 
+          COALESCE(h.badge_code, '') as badge_code, 
+          h.updated_at,
+          COALESCE(
+            CASE
+              WHEN COUNT(s.badge_code) = 0 THEN '[]'
+              ELSE json_group_array(
+                json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
+              )
+            END, '[]'
+          ) AS scans
         
         FROM Hacker_Information h
         LEFT JOIN Scans s ON h.badge_code = s.badge_code
@@ -65,24 +69,30 @@ app.get("/users/:id", async (req, res) => {
       `
       )
       .get(id);
+
+    // Since json_group_array() and json_object() return strings, we must parse the scans array before returning
     hacker.scans = JSON.parse(hacker.scans);
-    res.json(hacker); //the 0 means get first item
+    res.json(hacker);
   } catch (err) {
     console.error(err.message);
   }
 });
 
-// Update users endpoint: PUT localhost:3000/users/FOO
-// Assuming only name, email, phone, badge_code can be modified via parameters. The others should be read-only
+// Update users endpoint: Update a specific hacker's information by their database ID
+// Assuming only name, email, phone, badge_code can be modified via parameters. ID and updated_at should not be modifiable
 app.put("/users/:id", (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, badge_code } = req.body;
+
+    // Get the old badge code associated with the hacker. We need this to update the scans
     const getBadgeCode = db
       .prepare(`SELECT badge_code from Hacker_Information WHERE ID = ?;`)
       .get(id);
     const oldBadgeCode = getBadgeCode["badge_code"];
-    console.log(`Old Badge Code: ${oldBadgeCode}`);
+
+    // Update the hacker's information.
+    // If any of the new fields are null (not passed in), the old fields are retained
     console.log("Updating Hacker Information");
     db.prepare(
       `
@@ -98,10 +108,12 @@ app.put("/users/:id", (req, res) => {
     `
     ).run(name, email, phone, badge_code, id);
 
-    console.log("Successfully updated");
+    console.log("Hacker information successfully updated");
 
-    if (oldBadgeCode != null) {
-      console.log(`Repacing ${oldBadgeCode} with ${badge_code}`);
+    // Update the scans if the old badge code is not null (there might exist scans associated with the old badge code)
+    // and the new badge code is also not null (replacement is required)
+    if (oldBadgeCode != null && badge_code != null) {
+      console.log(`Replacing ${oldBadgeCode} with ${badge_code}`);
       db.prepare(
         `
         UPDATE Scans 
@@ -111,20 +123,24 @@ app.put("/users/:id", (req, res) => {
           badge_code = ?;
         `
       ).run(badge_code, oldBadgeCode);
+      console.log("Badge code successfully replaced");
     }
 
+    // Same as the GET request above, returning the updated information
     const hacker = db
       .prepare(
         `
-        SELECT h.name, h.email, h.phone, h.badge_code, h.updated_at,
-        COALESCE(
-          CASE
-            WHEN COUNT(s.badge_code) = 0 THEN '[]'
-            ELSE json_group_array(
-              json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
-            )
-          END, '[]'
-        ) AS scans
+        SELECT h.name, h.email, h.phone, 
+          COALESCE(h.badge_code, '') as badge_code, 
+          h.updated_at,
+          COALESCE(
+            CASE
+              WHEN COUNT(s.badge_code) = 0 THEN '[]'
+              ELSE json_group_array(
+                json_object('activity_name', s.activity_name, 'activity_category', s.activity_category, 'scanned_at', s.scanned_at)
+              )
+            END, '[]'
+          ) AS scans
         
         FROM Hacker_Information h
         LEFT JOIN Scans s ON h.badge_code = s.badge_code
@@ -133,20 +149,21 @@ app.put("/users/:id", (req, res) => {
       `
       )
       .get(id);
+
     hacker.scans = JSON.parse(hacker.scans);
-    res.json(hacker); //the 0 means get first item
+    res.json(hacker);
   } catch (err) {
     console.error(err.message);
   }
 });
 
-// Scan Endpoint
+// Scan Endpoint: Adds a scan for a specific badge code
 app.put("/scan/:badge_code", (req, res) => {
   try {
     const { badge_code } = req.params;
     const { activity_name, activity_category } = req.body;
 
-    // update the hacker's last update
+    // update the hacker's last update time
     const update_hacker = db.prepare(
       `
       UPDATE Hacker_Information 
@@ -157,13 +174,14 @@ app.put("/scan/:badge_code", (req, res) => {
       `
     );
 
-    // assuming all data associateed with the scan to be all information in Scans
+    // Insert the scan into the Scans table. Assuming "all data associated with the scan" to fill out the Scans table
     const add_scan = db.prepare(
       `
       INSERT INTO Scans (badge_code, activity_name, activity_category, scanned_at) VALUES(?,?,?,CURRENT_TIMESTAMP) RETURNING *;
       `
     );
 
+    // Run both sql commands and return the scan
     const transaction = db.transaction(
       (badge_code, activity_name, activity_category) => {
         const scan = add_scan.get(badge_code, activity_name, activity_category);
@@ -179,18 +197,14 @@ app.put("/scan/:badge_code", (req, res) => {
   }
 });
 
-// Scan Data Endpoint
-// ASSUMING that I count duplicate events
+// Scans Data Endpoint: Get information about scan categories
+// Assuming that I count duplicate events if someone scans an activity more than once
 app.get("/scans", (req, res) => {
   try {
     const minFrequency = parseInt(req.query.min_frequency);
     const maxFrequency = parseInt(req.query.max_frequency);
     const activityCategory = req.query.activity_category;
 
-    console.log(typeof minFrequency);
-    console.log(
-      `Min frequency: ${minFrequency} Max frequency: ${maxFrequency} Activity Category: ${activityCategory}`
-    );
     const aggregation = db.prepare(`
       SELECT activity_category, COUNT(*) as frequency
       FROM Scans
@@ -212,6 +226,7 @@ app.get("/scans", (req, res) => {
   }
 });
 
+// Starting the server by first setting up the database
 const startServer = () => {
   try {
     setupDatabase();
