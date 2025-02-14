@@ -28,7 +28,7 @@ This was done for ease of adding scans, and manipulating user information indepe
 
 `GET /users/:id`: The user information endpoint. Retrieves information for a specific user by the `id` specified in the url. Equipped with an error handler that throws 404 if the `id` is not found.
 
-`PUT /users/:id`: The update user information endpoint. Modifies a specific user's information in any subset of `name`, `email`, `phone`, and `badge_cde` by passing them the request body as a JSON object. The modified user's information is also returned in the response. Also equipped with an error handler that returns 404 if the `id` is not found.
+`PUT /users/:id`: The update user information endpoint. Modifies a specific user's information in any subset of `name`, `email`, `phone`, and `badge_code` by passing them the request body as a JSON object. The modified user's information is also returned in the response. Also equipped with an error handler that returns 404 if the `id` is not found.
 
 This API also supports partial updates, E.g. passing in
 ```
